@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dental CAD + Measurement</title>
+    <style>
+        body { margin: 0; background: #111; color: white; font-family: sans-serif; overflow: hidden; touch-action: none; }
+        #ui { position: absolute; bottom: 0; width: 100%; background: rgba(30,30,30,0.95); padding: 15px; box-sizing: border-box; border-top: 2px solid #00d4ff; z-index: 10; display: flex; flex-direction: column; gap: 8px; }
+        #container { width: 100vw; height: 60vh; }
+        .btn { background: #00d4ff; border: none; color: black; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; width: 100%; }
+        .row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .secondary-btn { background: #444; color: white; padding: 10px; border: none; border-radius: 8px; flex: 1; font-size: 12px; }
+        .active { background: #ff4444 !important; }
+        #measurement { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px; border: 1px solid #00d4ff; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="measurement">Distance: 0.00 mm</div>
+    <div id="container"></div>
+    <div id="ui">
+        <button class="btn" onclick="document.getElementById('fileInput').click()">📂 Open STL Scan</button>
+        <div class="row">
+            <button class="secondary-btn" onclick="generateTestTooth()">🦷 Test Molar</button>
+            <button id="sliceBtn" class="secondary-btn" onclick="toggleSlice()">🔪 Slice</button>
+            <button class="secondary-btn" onclick="clearPoints()">🧹 Clear Ruler</button>
+            <button class="secondary-btn" onclick="takeScreenshot()" style="background: #ff8c00;">📸 Photo</button>
+        </div>
+        <input type="file" id="fileInput" accept=".stl" style="display:none">
+    </div>
+
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        let scene, camera, renderer, controls, mesh, clippingPlane;
+        let isSlicing = false;
+        let points = [];
+        let markers = [];
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / (window.innerHeight * 0.6), 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+            renderer.setSize(window.innerWidth, window.innerHeight * 0.6);
+            renderer.localClippingEnabled = true;
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            const light = new THREE.PointLight(0xffffff, 1);
+            light.position.set(10, 20, 10);
+            scene.add(light);
+            scene.add(new THREE.AmbientLight(0x606060));
+
+            clippingPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            camera.position.set(0, 15, 30);
+
+            renderer.domElement.addEventListener('pointerdown', onDocumentMouseDown, false);
+            animate();
+        }
+
+        function onDocumentMouseDown(event) {
+            // Calculate mouse position
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / (window.innerHeight * 0.6)) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children);
+
+            if (intersects.length > 0 && intersects[0].object === mesh) {
+                addPoint(intersects[0].point);
+            }
+        }
+
+        function addPoint(pos) {
+            if (points.length >= 2) clearPoints();
+
+            points.push(pos);
+            const dotGeom = new THREE.SphereGeometry(0.5);
+            const dotMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const dot = new THREE.Mesh(dotGeom, dotMat);
+            dot.position.copy(pos);
+            scene.add(dot);
+            markers.push(dot);
+
+            if (points.length === 2) {
+                const dist = points[0].distanceTo(points[1]);
+                document.getElementById('measurement').innerText = `Distance: ${dist.toFixed(2)} mm`;
+            }
+        }
+
+        function clearPoints() {
+            points = [];
+            markers.forEach(m => scene.remove(m));
+            markers = [];
+            document.getElementById('measurement').innerText = "Distance: 0.00 mm";
+        }
+
+        function toggleSlice() {
+            isSlicing = !isSlicing;
+            if (mesh) mesh.material.clippingPlanes = isSlicing ? [clippingPlane] : null;
+            document.getElementById('sliceBtn').classList.toggle('active', isSlicing);
+        }
+
+        function generateTestTooth() {
+            if (mesh) scene.remove(mesh);
+            const geometry = new THREE.CylinderGeometry(7, 9, 12, 32);
+            const material = new THREE.MeshStandardMaterial({ color: 0x00d4ff, side: THREE.DoubleSide });
+            mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const loader = new THREE.STLLoader();
+                const geometry = loader.parse(event.target.result);
+                if (mesh) scene.remove(mesh);
+                const material = new THREE.MeshStandardMaterial({ color: 0xeeeeee, side: THREE.DoubleSide });
+                mesh = new THREE.Mesh(geometry, material);
+                geometry.computeBoundingBox();
+                const center = new THREE.Vector3();
+                geometry.boundingBox.getCenter(center);
+                mesh.position.sub(center);
+                scene.add(mesh);
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        init();
+    </script>
+</body>
+</html>
