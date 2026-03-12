@@ -2,29 +2,57 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dental CAD Pro: Designer Edition</title>
+    <title>Dental CAD Fix</title>
     <style>
         :root { --accent: #00d4ff; --bg: #121212; --panel: #1e1e1e; }
-        body { margin: 0; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; touch-action: none; }
-        #header { background: var(--panel); padding: 10px; border-bottom: 2px solid var(--accent); display: flex; justify-content: space-between; align-items: center; }
-        #container { width: 100vw; height: 42vh; }
-        #ui { position: absolute; bottom: 0; width: 100%; background: var(--panel); padding: 12px; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px; border-radius: 15px 15px 0 0; box-shadow: 0 -5px 20px rgba(0,0,0,0.6); }
-        .row { display: flex; gap: 5px; align-items: center; }
-        button { border: none; border-radius: 6px; font-weight: bold; padding: 10px; font-size: 10px; flex: 1; transition: 0.1s; }
+        body { margin: 0; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; }
+        
+        /* The 3D window is now strictly limited so it doesn't overlap buttons */
+        #container { width: 100vw; height: 45vh; position: relative; z-index: 1; touch-action: none; }
+        
+        /* The UI is forced to the front */
+        #ui { 
+            position: absolute; 
+            bottom: 0; 
+            width: 100%; 
+            background: var(--panel); 
+            padding: 15px; 
+            box-sizing: border-box; 
+            z-index: 100; /* High z-index ensures buttons are "on top" */
+            border-top: 2px solid var(--accent);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .row { display: flex; gap: 8px; width: 100%; }
+        button { 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            padding: 12px; 
+            font-size: 11px; 
+            flex: 1; 
+            cursor: pointer;
+            pointer-events: auto !important; /* Forces the button to accept taps */
+        }
+        
         .test-btn { background: #333; color: var(--accent); border: 1px solid var(--accent); }
         .load-btn { background: var(--accent); color: black; }
         .tool-btn { background: #444; color: white; }
-        .edit-toggle-btn { background: #555; color: #ff8c00; border: 1px solid #ff8c00; margin-bottom: 2px; }
-        #editor-panel { background: #252525; padding: 10px; border-radius: 8px; display: none; grid-template-columns: repeat(3, 1fr); gap: 4px; }
-        .adjust-label { font-size: 8px; color: #ff8c00; text-align: center; grid-column: span 3; font-weight: bold; margin-top: 4px; }
+        .edit-toggle-btn { background: #555; color: #ff8c00; border: 1px solid #ff8c00; width: 100%; }
+
+        #editor-panel { 
+            background: #252525; 
+            padding: 10px; 
+            border-radius: 8px; 
+            display: none; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 5px; 
+        }
     </style>
 </head>
 <body>
-
-<div id="header">
-    <span style="font-weight:bold">CAD <span style="color:var(--accent)">DESIGNER PRO</span></span>
-    <span id="mm-display" style="color:var(--accent); font-weight:bold;">0.00mm</span>
-</div>
 
 <div id="container"></div>
 
@@ -32,28 +60,46 @@
     <button id="toggleEditBtn" class="edit-toggle-btn" onclick="toggleEditor()">🛠️ ENABLE EDITING</button>
 
     <div id="editor-panel">
-        <span class="adjust-label">POSITION (Nudge)</span>
         <button class="tool-btn" onclick="adjust('pos', 'x', 0.5)">X+</button>
         <button class="tool-btn" onclick="adjust('pos', 'y', 0.5)">Y+</button>
         <button class="tool-btn" onclick="adjust('pos', 'z', 0.5)">Z+</button>
-        
-        <span class="adjust-label">ROTATION (Tilt)</span>
         <button class="tool-btn" onclick="adjust('rot', 'x', 0.1)">RX+</button>
         <button class="tool-btn" onclick="adjust('rot', 'y', 0.1)">RY+</button>
         <button class="tool-btn" onclick="adjust('rot', 'z', 0.1)">RZ+</button>
-        
-        <span class="adjust-label">SCALE (Size)</span>
-        <button class="tool-btn" onclick="adjust('scale', '', 0.95)">S-</button>
-        <button class="tool-btn" onclick="adjust('scale', '', 1.05)" style="grid-column: span 2">S+</button>
     </div>
 
     <div class="row">
-        <button class="test-btn" onclick="runTest(1)">🦷 PREP</button>
-        <button class="test-btn" onclick="runTest(2)">💎 DESIGN</button>
-        <button class="tool-btn" onclick="toggleSlice()">🔪 SLICE</button>
+        <button class="test-btn" onclick="runTest(1)">🦷 TEST PREP</button>
+        <button class="test-btn" onclick="runTest(2)">💎 TEST DESIGN</button>
     </div>
     
     <div class="row">
         <button class="load-btn" onclick="document.getElementById('f1').click()">📂 LOAD PREP</button>
         <button class="load-btn" onclick="document.getElementById('f2').click()">📂 LOAD DESIGN</button>
-        <button class="tool-btn" onclick
+    </div>
+
+    <div class="row">
+        <button class="tool-btn" onclick="toggleSlice()">🔪 SLICE</button>
+        <button class="tool-btn" onclick="takeShot()" style="background:#ff8c00; color:black">📸 SAVE QC</button>
+    </div>
+</div>
+
+<input type="file" id="f1" accept=".stl" style="display:none" onchange="load(event, 1)">
+<input type="file" id="f2" accept=".stl" style="display:none" onchange="load(event, 2)">
+
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+    // Logic remains same, but we use explicit event listeners for mobile stability
+    let scene, camera, renderer, controls, m1, m2;
+    let slicing = false, editorVisible = false;
+    let clip = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+
+    function init() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth / (window.innerHeight * 0.45), 0.1, 1000);
+        camera.position.set(0, 15, 30);
+        
+        renderer = new THREE.WebGLRenderer({ antialias: true, preserve
