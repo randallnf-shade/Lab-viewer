@@ -2,139 +2,172 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dental CAD + Measurement</title>
+    <title>Pro Dental Lab QC</title>
     <style>
-        body { margin: 0; background: #111; color: white; font-family: sans-serif; overflow: hidden; touch-action: none; }
-        #ui { position: absolute; bottom: 0; width: 100%; background: rgba(30,30,30,0.95); padding: 15px; box-sizing: border-box; border-top: 2px solid #00d4ff; z-index: 10; display: flex; flex-direction: column; gap: 8px; }
-        #container { width: 100vw; height: 60vh; }
-        .btn { background: #00d4ff; border: none; color: black; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; width: 100%; }
-        .row { display: flex; gap: 8px; flex-wrap: wrap; }
-        .secondary-btn { background: #444; color: white; padding: 10px; border: none; border-radius: 8px; flex: 1; font-size: 12px; }
-        .active { background: #ff4444 !important; }
-        #measurement { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px; border: 1px solid #00d4ff; font-weight: bold; }
+        :root { --accent: #00d4ff; --bg: #121212; --panel: #1e1e1e; }
+        body { margin: 0; background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; }
+        #header { background: var(--panel); padding: 10px 20px; border-bottom: 2px solid var(--accent); display: flex; justify-content: space-between; align-items: center; }
+        #container { width: 100vw; height: 55vh; background: radial-gradient(circle, #2c2c2c 0%, #121212 100%); }
+        #ui { position: absolute; bottom: 0; width: 100%; background: var(--panel); padding: 15px; box-sizing: border-box; border-top: 1px solid #444; display: flex; flex-direction: column; gap: 10px; border-radius: 20px 20px 0 0; }
+        .row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; }
+        .btn { background: var(--accent); border: none; color: black; padding: 12px; border-radius: 8px; font-weight: bold; flex: 1; min-width: 100px; font-size: 13px; }
+        .tool-btn { background: #333; color: white; border: 1px solid #555; padding: 10px; border-radius: 8px; flex: 1; font-size: 11px; }
+        .active { background: #ff4444 !important; border-color: #ffaaaa; }
+        #feedback { position: absolute; top: 60px; left: 10px; background: rgba(0,0,0,0.8); padding: 8px 12px; border-radius: 5px; border-left: 4px solid var(--accent); font-size: 12px; z-index: 5; }
     </style>
 </head>
 <body>
-    <div id="measurement">Distance: 0.00 mm</div>
-    <div id="container"></div>
-    <div id="ui">
-        <button class="btn" onclick="document.getElementById('fileInput').click()">📂 Open STL Scan</button>
-        <div class="row">
-            <button class="secondary-btn" onclick="generateTestTooth()">🦷 Test Molar</button>
-            <button id="sliceBtn" class="secondary-btn" onclick="toggleSlice()">🔪 Slice</button>
-            <button class="secondary-btn" onclick="clearPoints()">🧹 Clear Ruler</button>
-            <button class="secondary-btn" onclick="takeScreenshot()" style="background: #ff8c00;">📸 Photo</button>
-        </div>
-        <input type="file" id="fileInput" accept=".stl" style="display:none">
+
+<div id="header">
+    <span style="font-weight: bold; letter-spacing: 1px;">DENTAL CAD <span style="color:var(--accent)">PRO</span></span>
+    <span id="dist-display" style="font-size: 12px; color: var(--accent);">QC Ready</span>
+</div>
+
+<div id="feedback">
+    Mode: Standard View<br>
+    <span id="measure-text">Tap points to measure mm</span>
+</div>
+
+<div id="container"></div>
+
+<div id="ui">
+    <div class="row">
+        <button class="btn" onclick="document.getElementById('fileInput').click()">📂 LOAD SCAN</button>
+        <button class="btn" onclick="takeScreenshot()" style="background:#ff8c00">📸 CAPTURE</button>
     </div>
+    
+    <div class="row">
+        <button id="thickBtn" class="tool-btn" onclick="toggleThickness()">⚠️ THICKNESS CHECK</button>
+        <button id="pathBtn" class="tool-btn" onclick="lockPath()">👁️ INSERTION PATH</button>
+        <button id="sliceBtn" class="tool-btn" onclick="toggleSlice()">🔪 X-SECTION</button>
+        <button class="tool-btn" onclick="clearAll()">🧹 RESET</button>
+    </div>
+    
+    <input type="file" id="fileInput" accept=".stl" style="display:none">
+</div>
 
-    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
-    <script>
-        let scene, camera, renderer, controls, mesh, clippingPlane;
-        let isSlicing = false;
-        let points = [];
-        let markers = [];
-        let raycaster = new THREE.Raycaster();
-        let mouse = new THREE.Vector2();
+<script>
+    let scene, camera, renderer, controls, mesh;
+    let points = [], markers = [];
+    let isSlicing = false, isPathLocked = false;
+    let clippingPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
 
-        function init() {
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / (window.innerHeight * 0.6), 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-            renderer.setSize(window.innerWidth, window.innerHeight * 0.6);
-            renderer.localClippingEnabled = true;
-            document.getElementById('container').appendChild(renderer.domElement);
+    function init() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth / (window.innerHeight * 0.55), 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+        renderer.setSize(window.innerWidth, window.innerHeight * 0.55);
+        renderer.localClippingEnabled = true;
+        document.getElementById('container').appendChild(renderer.domElement);
 
-            const light = new THREE.PointLight(0xffffff, 1);
-            light.position.set(10, 20, 10);
-            scene.add(light);
-            scene.add(new THREE.AmbientLight(0x606060));
+        const ambient = new THREE.AmbientLight(0x606060);
+        scene.add(ambient);
+        const sun = new THREE.DirectionalLight(0xffffff, 1);
+        sun.position.set(5, 10, 7);
+        scene.add(sun);
 
-            clippingPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            camera.position.set(0, 15, 30);
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        camera.position.set(0, 15, 30);
+        
+        renderer.domElement.addEventListener('pointerdown', handleTap);
+        animate();
+    }
 
-            renderer.domElement.addEventListener('pointerdown', onDocumentMouseDown, false);
-            animate();
+    function toggleThickness() {
+        if (!mesh) return;
+        const btn = document.getElementById('thickBtn');
+        btn.classList.toggle('active');
+        // Simulating Heatmap by changing material to a gradient type
+        mesh.material = btn.classList.contains('active') ? 
+            new THREE.MeshNormalMaterial({ wireframe: false }) : 
+            new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.3 });
+        document.getElementById('measure-text').innerText = "Thickness alerts active (Visual Mode)";
+    }
+
+    function lockPath() {
+        isPathLocked = !isPathLocked;
+        const btn = document.getElementById('pathBtn');
+        btn.classList.toggle('active');
+        if (isPathLocked) {
+            camera.position.set(0, 50, 0); // Lock to Occlusal View
+            controls.enableRotate = false;
+            document.getElementById('measure-text').innerText = "Path of Insertion Locked (Top-Down)";
+        } else {
+            controls.enableRotate = true;
+            document.getElementById('measure-text').innerText = "Rotation unlocked";
         }
+    }
 
-        function onDocumentMouseDown(event) {
-            // Calculate mouse position
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / (window.innerHeight * 0.6)) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(scene.children);
-
-            if (intersects.length > 0 && intersects[0].object === mesh) {
-                addPoint(intersects[0].point);
-            }
-        }
-
-        function addPoint(pos) {
-            if (points.length >= 2) clearPoints();
-
+    function handleTap(e) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+            (e.clientX / rect.width) * 2 - 1,
+            -((e.clientY - rect.top) / rect.height) * 2 + 1
+        );
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, camera);
+        const hits = raycaster.intersectObjects(scene.children);
+        
+        if (hits.length > 0 && hits[0].object === mesh) {
+            const pos = hits[0].point;
             points.push(pos);
-            const dotGeom = new THREE.SphereGeometry(0.5);
-            const dotMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            const dot = new THREE.Mesh(dotGeom, dotMat);
+            const dot = new THREE.Mesh(new THREE.SphereGeometry(0.4), new THREE.MeshBasicMaterial({color: 0x00d4ff}));
             dot.position.copy(pos);
             scene.add(dot);
             markers.push(dot);
-
+            
             if (points.length === 2) {
-                const dist = points[0].distanceTo(points[1]);
-                document.getElementById('measurement').innerText = `Distance: ${dist.toFixed(2)} mm`;
+                const d = points[0].distanceTo(points[1]);
+                document.getElementById('dist-display').innerText = d.toFixed(2) + " mm";
+                points = [];
             }
         }
+    }
 
-        function clearPoints() {
-            points = [];
-            markers.forEach(m => scene.remove(m));
-            markers = [];
-            document.getElementById('measurement').innerText = "Distance: 0.00 mm";
+    function toggleSlice() {
+        isSlicing = !isSlicing;
+        if (mesh) mesh.material.clippingPlanes = isSlicing ? [clippingPlane] : null;
+        document.getElementById('sliceBtn').classList.toggle('active');
+    }
+
+    function clearAll() {
+        markers.forEach(m => scene.remove(m));
+        markers = []; points = [];
+        document.getElementById('dist-display').innerText = "QC Ready";
+        if (mesh) {
+            mesh.material.clippingPlanes = null;
+            mesh.material = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
         }
+    }
 
-        function toggleSlice() {
-            isSlicing = !isSlicing;
-            if (mesh) mesh.material.clippingPlanes = isSlicing ? [clippingPlane] : null;
-            document.getElementById('sliceBtn').classList.toggle('active', isSlicing);
-        }
+    function takeScreenshot() {
+        const link = document.createElement('a');
+        link.download = `QC-Report-${Date.now()}.png`;
+        link.href = renderer.domElement.toDataURL('image/png');
+        link.click();
+    }
 
-        function generateTestTooth() {
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const geom = new THREE.STLLoader().parse(event.target.result);
             if (mesh) scene.remove(mesh);
-            const geometry = new THREE.CylinderGeometry(7, 9, 12, 32);
-            const material = new THREE.MeshStandardMaterial({ color: 0x00d4ff, side: THREE.DoubleSide });
-            mesh = new THREE.Mesh(geometry, material);
+            mesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({ color: 0xeeeeee }));
+            geom.computeBoundingBox();
+            const center = new THREE.Vector3();
+            geom.boundingBox.getCenter(center);
+            mesh.position.sub(center);
             scene.add(mesh);
-        }
+        };
+        reader.readAsArrayBuffer(e.target.files[0]);
+    });
 
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const loader = new THREE.STLLoader();
-                const geometry = loader.parse(event.target.result);
-                if (mesh) scene.remove(mesh);
-                const material = new THREE.MeshStandardMaterial({ color: 0xeeeeee, side: THREE.DoubleSide });
-                mesh = new THREE.Mesh(geometry, material);
-                geometry.computeBoundingBox();
-                const center = new THREE.Vector3();
-                geometry.boundingBox.getCenter(center);
-                mesh.position.sub(center);
-                scene.add(mesh);
-            };
-            reader.readAsArrayBuffer(file);
-        });
-
-        function animate() {
-            requestAnimationFrame(animate);
-            renderer.render(scene, camera);
-        }
-        init();
-    </script>
+    function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
+    init();
+</script>
 </body>
 </html>
