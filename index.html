@@ -2,19 +2,18 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pro Molar CAD</title>
+    <title>Molar Designer Fix</title>
     <style>
         :root { --accent: #00d4ff; --bg: #000000; --panel: #1a1a1a; }
         body { margin: 0; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; touch-action: none; }
-        #container { width: 100vw; height: 45vh; background: radial-gradient(circle, #222 0%, #000 100%); }
-        #ui { height: 55vh; background: var(--panel); padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; border-top: 2px solid var(--accent); }
+        #container { width: 100vw; height: 45vh; background: #000; border-bottom: 1px solid #333; }
+        #ui { height: 55vh; background: var(--panel); padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
         .row { display: flex; gap: 10px; }
-        button { border: none; border-radius: 12px; font-weight: bold; padding: 18px; font-size: 12px; flex: 1; cursor: pointer; transition: 0.2s; }
-        button:active { filter: brightness(1.5); transform: scale(0.98); }
-        .test-btn { background: #333; color: var(--accent); border: 2px solid var(--accent); }
-        .load-btn { background: var(--accent); color: black; }
-        .tool-btn { background: #444; color: white; }
-        .edit-toggle { background: #ff8c00; color: black; width: 100%; }
+        button { border: none; border-radius: 12px; font-weight: bold; padding: 18px; font-size: 13px; flex: 1; cursor: pointer; color: white; background: #333; box-shadow: 0 4px 0 #000; }
+        button:active { transform: translateY(2px); box-shadow: 0 2px 0 #000; background: #444; }
+        .test-btn { border: 2px solid var(--accent); color: var(--accent); }
+        .load-btn { background: var(--accent); color: black; box-shadow: 0 4px 0 #0089a7; }
+        .edit-toggle { background: #ff8c00; color: black; box-shadow: 0 4px 0 #b36200; width: 100%; }
         #editor { display: none; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #222; padding: 10px; border-radius: 10px; }
     </style>
 </head>
@@ -23,33 +22,134 @@
 <div id="container"></div>
 
 <div id="ui">
-    <div style="font-size: 10px; color: var(--accent); text-align: center; font-weight: bold;">STEP 1: GENERATE REALISTIC TEST MODELS</div>
+    <div style="font-size: 11px; color: var(--accent); font-weight: bold; text-align: center;">1. GENERATE TEST MODELS</div>
     <div class="row">
-        <button class="test-btn" onclick="genMolar(1)">🦷 TEST PREP</button>
-        <button class="test-btn" onclick="genMolar(2)">💎 TEST CROWN</button>
+        <button class="test-btn" onclick="genMolar(1)">🦷 PREP</button>
+        <button class="test-btn" onclick="genMolar(2)">💎 CROWN</button>
     </div>
 
-    <div style="font-size: 10px; color: #888; text-align: center; margin-top: 5px;">STEP 2: LOAD OR MODIFY</div>
+    <div style="font-size: 11px; color: #888; font-weight: bold; text-align: center;">2. QC & VIEW</div>
     <div class="row">
-        <button class="load-btn" onclick="document.getElementById('f1').click()">📂 LOAD PREP</button>
-        <button class="load-btn" onclick="document.getElementById('f2').click()">📂 LOAD DESIGN</button>
-    </div>
-
-    <div class="row">
-        <button class="tool-btn" onclick="toggleSlice()">🔪 X-SECTION</button>
-        <button class="tool-btn" onclick="resetCam()">🔄 RESET VIEW</button>
+        <button onclick="toggleSlice()">🔪 X-SECTION</button>
+        <button onclick="resetCam()">🔄 CENTER</button>
     </div>
 
     <button class="edit-toggle" onclick="toggleEditor()">🛠️ TRANSFORM DESIGN</button>
     <div id="editor">
-        <button class="tool-btn" onclick="adj('pos','x',1)">X+</button>
-        <button class="tool-btn" onclick="adj('pos','y',1)">Y+</button>
-        <button class="tool-btn" onclick="adj('pos','z',1)">Z+</button>
-        <button class="tool-btn" onclick="adj('rot','x',0.2)">Tilt X</button>
-        <button class="tool-btn" onclick="adj('rot','y',0.2)">Tilt Y</button>
-        <button class="tool-btn" onclick="adj('scale','',1.1)">Grow</button>
+        <button onclick="adj('pos','x',2)">X+</button>
+        <button onclick="adj('pos','y',2)">Y+</button>
+        <button onclick="adj('pos','z',2)">Z+</button>
+        <button onclick="adj('rot','x',0.5)">Tilt X</button>
+        <button onclick="adj('scale','',1.2)">Grow</button>
+        <button onclick="adj('scale','',0.8)">Shrink</button>
+    </div>
+
+    <div class="row" style="margin-top: 10px;">
+        <button class="load-btn" onclick="document.getElementById('f1').click()">📂 LOAD PREP STL</button>
+        <button class="load-btn" onclick="document.getElementById('f2').click()">📂 LOAD CROWN STL</button>
     </div>
 </div>
 
 <input type="file" id="f1" accept=".stl" style="display:none" onchange="handleFile(event, 1)">
-<input type="file" id="f2" accept=".stl" style="display:none" onchange="handleFile(event,
+<input type="file" id="f2" accept=".stl" style="display:none" onchange="handleFile(event, 2)">
+
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+    let scene, camera, renderer, controls, prep, crown, slicing = false;
+    const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+
+    function init() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(50, window.innerWidth / (window.innerHeight * 0.45), 0.1, 1000);
+        camera.position.set(25, 25, 25);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+        renderer.setSize(window.innerWidth, window.innerHeight * 0.45);
+        renderer.localClippingEnabled = true;
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+        const light = new THREE.DirectionalLight(0xffffff, 1.0);
+        light.position.set(10, 20, 10);
+        scene.add(light);
+
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        animate();
+    }
+
+    function genMolar(type) {
+        // Build a sturdy Molar Shape
+        const pts = [];
+        for (let i = 0; i < 12; i++) {
+            let r = type === 1 ? (Math.cos(i * 0.3) * 2 + 5) : (Math.cos(i * 0.3) * 2.5 + 6.5);
+            if (i > 8) r *= 0.6; // Create the "occlusal" taper
+            pts.push(new THREE.Vector2(r, (i - 6) * 2));
+        }
+        const geo = new THREE.LatheGeometry(pts, 32);
+        const mat = new THREE.MeshStandardMaterial({ 
+            color: type === 1 ? 0xffffff : 0x00d4ff, 
+            transparent: type === 2, 
+            opacity: 0.65,
+            side: THREE.DoubleSide 
+        });
+        
+        const mesh = new THREE.Mesh(geo, mat);
+        if (type === 1) { if(prep) scene.remove(prep); prep = mesh; }
+        else { if(crown) scene.remove(crown); crown = mesh; }
+        
+        scene.add(mesh);
+        console.log("Model Generated:", type);
+        resetCam();
+    }
+
+    function toggleEditor() {
+        const e = document.getElementById('editor');
+        e.style.display = e.style.display === 'grid' ? 'none' : 'grid';
+    }
+
+    function adj(m, a, v) {
+        if(!crown) return;
+        if(m === 'pos') crown.position[a] += v;
+        if(m === 'rot') crown.rotation[a] += v;
+        if(m === 'scale') crown.scale.multiplyScalar(v);
+    }
+
+    function handleFile(e, layer) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const geo = new THREE.STLLoader().parse(ev.target.result);
+            const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ 
+                color: layer === 1 ? 0xffffff : 0x00d4ff, 
+                transparent: layer === 2, opacity: 0.7 
+            }));
+            if (layer === 1) { if(prep) scene.remove(prep); prep = m; }
+            else { if(crown) scene.remove(crown); crown = m; }
+            scene.add(m);
+            resetCam();
+        };
+        reader.readAsArrayBuffer(e.target.files[0]);
+    }
+
+    function resetCam() {
+        camera.position.set(30, 30, 30);
+        controls.target.set(0, 0, 0);
+        controls.update();
+    }
+
+    function toggleSlice() {
+        slicing = !slicing;
+        [prep, crown].forEach(m => { if(m) m.material.clippingPlanes = slicing ? [clipPlane] : null; });
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+    }
+
+    init();
+</script>
+</body>
+</html>
