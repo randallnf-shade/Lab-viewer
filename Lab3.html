@@ -2,18 +2,18 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pro Dental Lab QC</title>
+    <title>Pro Dental Lab QC + Test Mode</title>
     <style>
         :root { --accent: #00d4ff; --bg: #121212; --panel: #1e1e1e; }
         body { margin: 0; background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; }
         #header { background: var(--panel); padding: 10px 20px; border-bottom: 2px solid var(--accent); display: flex; justify-content: space-between; align-items: center; }
-        #container { width: 100vw; height: 55vh; background: radial-gradient(circle, #2c2c2c 0%, #121212 100%); }
-        #ui { position: absolute; bottom: 0; width: 100%; background: var(--panel); padding: 15px; box-sizing: border-box; border-top: 1px solid #444; display: flex; flex-direction: column; gap: 10px; border-radius: 20px 20px 0 0; }
-        .row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; }
-        .btn { background: var(--accent); border: none; color: black; padding: 12px; border-radius: 8px; font-weight: bold; flex: 1; min-width: 100px; font-size: 13px; }
-        .tool-btn { background: #333; color: white; border: 1px solid #555; padding: 10px; border-radius: 8px; flex: 1; font-size: 11px; }
+        #container { width: 100vw; height: 52vh; background: radial-gradient(circle, #2c2c2c 0%, #121212 100%); }
+        #ui { position: absolute; bottom: 0; width: 100%; background: var(--panel); padding: 15px; box-sizing: border-box; border-top: 1px solid #444; display: flex; flex-direction: column; gap: 8px; border-radius: 20px 20px 0 0; }
+        .row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
+        .btn { background: var(--accent); border: none; color: black; padding: 12px; border-radius: 8px; font-weight: bold; flex: 1; min-width: 120px; font-size: 13px; }
+        .tool-btn { background: #333; color: white; border: 1px solid #555; padding: 10px; border-radius: 8px; flex: 1; font-size: 11px; min-width: 90px; }
         .active { background: #ff4444 !important; border-color: #ffaaaa; }
-        #feedback { position: absolute; top: 60px; left: 10px; background: rgba(0,0,0,0.8); padding: 8px 12px; border-radius: 5px; border-left: 4px solid var(--accent); font-size: 12px; z-index: 5; }
+        #feedback { position: absolute; top: 65px; left: 10px; background: rgba(0,0,0,0.8); padding: 8px 12px; border-radius: 5px; border-left: 4px solid var(--accent); font-size: 11px; z-index: 5; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -25,7 +25,7 @@
 
 <div id="feedback">
     Mode: Standard View<br>
-    <span id="measure-text">Tap points to measure mm</span>
+    <span id="measure-text">Tap 2 points to measure mm</span>
 </div>
 
 <div id="container"></div>
@@ -33,12 +33,13 @@
 <div id="ui">
     <div class="row">
         <button class="btn" onclick="document.getElementById('fileInput').click()">📂 LOAD SCAN</button>
+        <button class="btn" onclick="generateTestTooth()" style="background:#555; color:white;">🦷 TEST MOLAR</button>
         <button class="btn" onclick="takeScreenshot()" style="background:#ff8c00">📸 CAPTURE</button>
     </div>
     
     <div class="row">
-        <button id="thickBtn" class="tool-btn" onclick="toggleThickness()">⚠️ THICKNESS CHECK</button>
-        <button id="pathBtn" class="tool-btn" onclick="lockPath()">👁️ INSERTION PATH</button>
+        <button id="thickBtn" class="tool-btn" onclick="toggleThickness()">⚠️ THICKNESS</button>
+        <button id="pathBtn" class="tool-btn" onclick="lockPath()">👁️ INSERTION</button>
         <button id="sliceBtn" class="tool-btn" onclick="toggleSlice()">🔪 X-SECTION</button>
         <button class="tool-btn" onclick="clearAll()">🧹 RESET</button>
     </div>
@@ -58,14 +59,13 @@
 
     function init() {
         scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(70, window.innerWidth / (window.innerHeight * 0.55), 0.1, 1000);
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth / (window.innerHeight * 0.52), 0.1, 1000);
         renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-        renderer.setSize(window.innerWidth, window.innerHeight * 0.55);
+        renderer.setSize(window.innerWidth, window.innerHeight * 0.52);
         renderer.localClippingEnabled = true;
         document.getElementById('container').appendChild(renderer.domElement);
 
-        const ambient = new THREE.AmbientLight(0x606060);
-        scene.add(ambient);
+        scene.add(new THREE.AmbientLight(0x606060));
         const sun = new THREE.DirectionalLight(0xffffff, 1);
         sun.position.set(5, 10, 7);
         scene.add(sun);
@@ -77,15 +77,23 @@
         animate();
     }
 
+    function generateTestTooth() {
+        if (mesh) scene.remove(mesh);
+        // Standard molar-like prep geometry
+        const geom = new THREE.CylinderGeometry(7, 9, 12, 32);
+        mesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({ color: 0xeeeeee, side: THREE.DoubleSide }));
+        scene.add(mesh);
+        document.getElementById('feedback').style.display = 'block';
+        document.getElementById('measure-text').innerText = "Test Molar Loaded";
+    }
+
     function toggleThickness() {
         if (!mesh) return;
         const btn = document.getElementById('thickBtn');
         btn.classList.toggle('active');
-        // Simulating Heatmap by changing material to a gradient type
         mesh.material = btn.classList.contains('active') ? 
-            new THREE.MeshNormalMaterial({ wireframe: false }) : 
-            new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.3 });
-        document.getElementById('measure-text').innerText = "Thickness alerts active (Visual Mode)";
+            new THREE.MeshNormalMaterial({ side: THREE.DoubleSide }) : 
+            new THREE.MeshStandardMaterial({ color: 0xeeeeee, side: THREE.DoubleSide });
     }
 
     function lockPath() {
@@ -93,16 +101,15 @@
         const btn = document.getElementById('pathBtn');
         btn.classList.toggle('active');
         if (isPathLocked) {
-            camera.position.set(0, 50, 0); // Lock to Occlusal View
+            camera.position.set(0, 40, 0); 
             controls.enableRotate = false;
-            document.getElementById('measure-text').innerText = "Path of Insertion Locked (Top-Down)";
         } else {
             controls.enableRotate = true;
-            document.getElementById('measure-text').innerText = "Rotation unlocked";
         }
     }
 
     function handleTap(e) {
+        if (!mesh) return;
         const rect = renderer.domElement.getBoundingClientRect();
         const mouse = new THREE.Vector2(
             (e.clientX / rect.width) * 2 - 1,
@@ -110,12 +117,12 @@
         );
         const raycaster = new THREE.Raycaster();
         raycaster.setFromCamera(mouse, camera);
-        const hits = raycaster.intersectObjects(scene.children);
+        const hits = raycaster.intersectObject(mesh);
         
-        if (hits.length > 0 && hits[0].object === mesh) {
+        if (hits.length > 0) {
             const pos = hits[0].point;
             points.push(pos);
-            const dot = new THREE.Mesh(new THREE.SphereGeometry(0.4), new THREE.MeshBasicMaterial({color: 0x00d4ff}));
+            const dot = new THREE.Mesh(new THREE.SphereGeometry(0.35), new THREE.MeshBasicMaterial({color: 0x00d4ff}));
             dot.position.copy(pos);
             scene.add(dot);
             markers.push(dot);
@@ -140,13 +147,18 @@
         document.getElementById('dist-display').innerText = "QC Ready";
         if (mesh) {
             mesh.material.clippingPlanes = null;
-            mesh.material = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+            mesh.material = new THREE.MeshStandardMaterial({ color: 0xeeeeee, side: THREE.DoubleSide });
         }
+        document.getElementById('thickBtn').classList.remove('active');
+        document.getElementById('pathBtn').classList.remove('active');
+        document.getElementById('sliceBtn').classList.remove('active');
+        controls.enableRotate = true;
+        isPathLocked = false;
     }
 
     function takeScreenshot() {
         const link = document.createElement('a');
-        link.download = `QC-Report-${Date.now()}.png`;
+        link.download = `Dental-QC-${Date.now()}.png`;
         link.href = renderer.domElement.toDataURL('image/png');
         link.click();
     }
@@ -156,7 +168,7 @@
         reader.onload = function(event) {
             const geom = new THREE.STLLoader().parse(event.target.result);
             if (mesh) scene.remove(mesh);
-            mesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({ color: 0xeeeeee }));
+            mesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({ color: 0xeeeeee, side: THREE.DoubleSide }));
             geom.computeBoundingBox();
             const center = new THREE.Vector3();
             geom.boundingBox.getCenter(center);
