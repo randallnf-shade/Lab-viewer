@@ -2,78 +2,104 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dental CAD Pro v2.0</title>
+    <title>Dental CAD Pro: Solo Lab</title>
     <style>
         :root { --accent: #00d4ff; --danger: #ff4444; --panel: #1e1e1e; --bg: #0a0a0a; }
         body { margin: 0; background: var(--bg); color: white; font-family: 'Segoe UI', Roboto, sans-serif; overflow: hidden; touch-action: none; }
         
         #header { height: 50px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 2px solid var(--accent); }
-        #container { width: 100vw; height: 45vh; background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%); position: relative; }
+        #container { width: 100vw; height: 42vh; background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%); position: relative; }
         
-        #ui-layer { height: 55vh; background: var(--panel); padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; box-shadow: 0 -10px 30px rgba(0,0,0,0.5); }
+        #ui-layer { height: 58vh; background: var(--panel); padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; box-shadow: 0 -10px 30px rgba(0,0,0,0.5); }
         
         .control-group { background: #2a2a2a; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; border: 1px solid #333; }
         .group-label { font-size: 10px; font-weight: bold; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; }
         
         .row { display: flex; gap: 8px; }
-        button { border: none; border-radius: 8px; font-weight: bold; padding: 14px; font-size: 11px; flex: 1; cursor: pointer; color: white; background: #3d3d3d; transition: all 0.2s; -webkit-tap-highlight-color: transparent; text-transform: uppercase; }
+        button { border: none; border-radius: 8px; font-weight: bold; padding: 12px; font-size: 11px; flex: 1; cursor: pointer; color: white; background: #3d3d3d; transition: all 0.2s; -webkit-tap-highlight-color: transparent; text-transform: uppercase; }
         button:active { transform: scale(0.96); filter: brightness(1.3); }
         
         .primary { background: var(--accent); color: black; }
-        .secondary { border: 1px solid var(--accent); color: var(--accent); background: transparent; }
+        .secondary { border: 1px solid var(--accent); color: var(--accent); background: #222; }
         .warning { color: #ff8c00; border: 1px solid #ff8c00; background: transparent; }
+        .export-btn { background: #00d4ff; color: black; border: 2px solid #fff; }
 
         #edit-panel { display: none; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 5px; }
-        .stat-badge { font-size: 12px; background: #000; padding: 4px 10px; border-radius: 20px; color: var(--accent); border: 1px solid var(--accent); }
+        
+        /* New Lab RX Styles */
+        #rx-panel { display: none; flex-direction: column; gap: 6px; margin-top: 5px; background: #111; padding: 10px; border-radius: 8px; border: 1px dashed #555; }
+        input { background: #333; border: 1px solid #555; color: white; padding: 8px; border-radius: 4px; font-size: 12px; font-family: sans-serif; }
+        input::placeholder { color: #888; }
+        
+        /* Floating Overlay for Screenshots */
+        #rx-overlay { position: absolute; top: 60px; left: 10px; background: rgba(0,0,0,0.6); padding: 8px; border-left: 3px solid var(--accent); border-radius: 4px; font-size: 10px; pointer-events: none; display: none; z-index: 10; text-shadow: 1px 1px 2px black; }
+
+        .stat-badge { font-size: 12px; background: #000; padding: 4px 10px; border-radius: 20px; color: var(--accent); border: 1px solid var(--accent); font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div id="header">
-    <div style="font-weight: 800; font-size: 18px;">PRO <span style="color:var(--accent)">CAD</span></div>
-    <div id="dist-out" class="stat-badge">0.00mm</div>
+    <div style="font-weight: 800; font-size: 18px;">SOLO <span style="color:var(--accent)">LAB PRO</span></div>
+    <div id="dist-out" class="stat-badge">READY</div>
+</div>
+
+<div id="rx-overlay">
+    <div id="out-dr" style="color:var(--accent); font-weight:bold;">Dr. </div>
+    <div id="out-pt">Pt: </div>
+    <div id="out-tooth">Tooth: | Shade: </div>
 </div>
 
 <div id="container"></div>
 
 <div id="ui-layer">
     <div class="control-group">
-        <div class="group-label">Virtual Test Models</div>
+        <div class="group-label">Lab Management</div>
         <div class="row">
-            <button class="secondary" onclick="generateProMolar(1)">🦷 TEST PREP</button>
-            <button class="secondary" onclick="generateProMolar(2)">💎 TEST CROWN</button>
+            <button id="caliperBtn" class="secondary" onclick="toggleCaliper()">📏 CALIPER: OFF</button>
+            <button class="secondary" onclick="toggleRx()">📋 LAB RX</button>
+        </div>
+        <div id="rx-panel">
+            <input type="text" id="rx-dr" placeholder="Doctor Name" oninput="updateRx()">
+            <input type="text" id="rx-pt" placeholder="Patient/Case ID" oninput="updateRx()">
+            <div class="row">
+                <input type="text" id="rx-tooth" placeholder="Tooth #" style="flex:1;" oninput="updateRx()">
+                <input type="text" id="rx-shade" placeholder="Shade" style="flex:1;" oninput="updateRx()">
+            </div>
         </div>
     </div>
 
     <div class="control-group">
-        <div class="group-label">Patient STL Imports</div>
+        <div class="group-label">Scan Imports</div>
         <div class="row">
             <button class="primary" onclick="document.getElementById('f1').click()">📂 LOAD PREP</button>
             <button class="primary" onclick="document.getElementById('f2').click()">📂 LOAD DESIGN</button>
         </div>
+        <div class="row" style="margin-top: 5px;">
+            <button class="secondary" onclick="generateProMolar(1)" style="font-size: 9px;">Test Prep</button>
+            <button class="secondary" onclick="generateProMolar(2)" style="font-size: 9px;">Test Design</button>
+        </div>
     </div>
 
     <div class="control-group">
-        <div class="group-label">Visualization & QC</div>
+        <div class="group-label">QC & Export</div>
         <div class="row">
             <button onclick="toggleClipping()">🔪 X-SECTION</button>
-            <button onclick="resetViewport()">🔄 CENTER VIEW</button>
-            <button onclick="clearScene()" style="color:var(--danger)">🧹 CLEAR</button>
+            <button onclick="takeShot()" style="background:#ff8c00; color:black;">📸 SAVE QC</button>
         </div>
-    </div>
-
-    <div class="control-group">
-        <div class="group-label">Transformation Engine</div>
-        <button class="warning" onclick="toggleEditPanel()">🛠️ MODIFY RESTORATION</button>
+        <button class="warning" onclick="toggleEditPanel()" style="margin-top:8px;">🛠️ TRANSFORM & EXPORT</button>
         <div id="edit-panel">
-            <button onclick="transform('pos','x',0.5)">X+</button>
-            <button onclick="transform('pos','y',0.5)">Y+</button>
-            <button onclick="transform('pos','z',0.5)">Z+</button>
-            <button onclick="transform('rot','x',0.1)">RX+</button>
-            <button onclick="transform('rot','y',0.1)">RY+</button>
-            <button onclick="transform('scale','',1.05)">S+</button>
+            <button onclick="transform('pos','x',0.1)">X+</button>
+            <button onclick="transform('pos','y',0.1)">Y+</button>
+            <button onclick="transform('pos','z',0.1)">Z+</button>
+            <button onclick="transform('rot','x',0.05)">Tilt X</button>
+            <button onclick="transform('rot','y',0.05)">Tilt Y</button>
+            <button onclick="transform('scale','',1.02)">Grow</button>
+            <button class="export-btn" onclick="exportDesign()" style="grid-column: span 3; margin-top: 5px;">💾 EXPORT STL</button>
         </div>
     </div>
+    
+    <button onclick="clearScene()" style="color:var(--danger); background:#222; margin-top: 5px;">🧹 RESET SCENE</button>
 </div>
 
 <input type="file" id="f1" accept=".stl" style="display:none" onchange="importSTL(event, 1)">
@@ -81,21 +107,24 @@
 
 <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
 <script>
     let scene, camera, renderer, controls, scan1, scan2;
     let isClipping = false;
+    let isMeasuring = false;
+    let measurePts = [];
+    let measureMarkers = [];
     const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
 
     function init() {
         scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(40, window.innerWidth / (window.innerHeight * 0.45), 0.1, 1000);
-        camera.position.set(30, 30, 30);
+        camera = new THREE.PerspectiveCamera(40, window.innerWidth / (window.innerHeight * 0.42), 0.1, 1000);
+        camera.position.set(30, 20, 30);
 
         renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-        renderer.setSize(window.innerWidth, window.innerHeight * 0.45);
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight * 0.42);
         renderer.localClippingEnabled = true;
         document.getElementById('container').appendChild(renderer.domElement);
 
@@ -108,10 +137,178 @@
         controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         
+        // Caliper Raycaster Listener
+        renderer.domElement.addEventListener('pointerdown', handleCaliperTap);
+        
         renderLoop();
     }
 
+    // --- RX Form Logic ---
+    function toggleRx() {
+        const p = document.getElementById('rx-panel');
+        const o = document.getElementById('rx-overlay');
+        const isHidden = p.style.display === 'none' || p.style.display === '';
+        p.style.display = isHidden ? 'flex' : 'none';
+        o.style.display = isHidden ? 'block' : 'none';
+    }
+
+    function updateRx() {
+        document.getElementById('out-dr').innerText = "Dr. " + (document.getElementById('rx-dr').value || "______");
+        document.getElementById('out-pt').innerText = "Pt: " + (document.getElementById('rx-pt').value || "______");
+        document.getElementById('out-tooth').innerText = "Tooth: " + (document.getElementById('rx-tooth').value || "_") + " | Shade: " + (document.getElementById('rx-shade').value || "_");
+    }
+
+    // --- Caliper Logic ---
+    function toggleCaliper() {
+        isMeasuring = !isMeasuring;
+        const btn = document.getElementById('caliperBtn');
+        if (isMeasuring) {
+            btn.innerText = "📏 CALIPER: ON";
+            btn.style.background = "#ff8c00";
+            btn.style.color = "black";
+            document.getElementById('dist-out').innerText = "TAP POINT 1";
+            controls.enableRotate = false; // Lock rotation while measuring
+        } else {
+            btn.innerText = "📏 CALIPER: OFF";
+            btn.style.background = "#222";
+            btn.style.color = "var(--accent)";
+            controls.enableRotate = true;
+            clearCaliper();
+        }
+    }
+
+    function clearCaliper() {
+        measureMarkers.forEach(m => scene.remove(m));
+        measureMarkers = [];
+        measurePts = [];
+        document.getElementById('dist-out').innerText = "READY";
+    }
+
+    function handleCaliperTap(e) {
+        if (!isMeasuring) return;
+        
+        const rect = renderer.domElement.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+            ((e.clientX - rect.left) / rect.width) * 2 - 1,
+            -((e.clientY - rect.top) / rect.height) * 2 + 1
+        );
+        
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, camera);
+        
+        // Only intersect with our teeth meshes
+        const meshes = scene.children.filter(c => c.type === "Mesh" && c.geometry.type !== "SphereGeometry");
+        const hits = raycaster.intersectObjects(meshes);
+
+        if (hits.length > 0) {
+            // Auto-clear if we already have 2 points
+            if (measurePts.length >= 2) {
+                measureMarkers.forEach(m => scene.remove(m));
+                measureMarkers = [];
+                measurePts = [];
+            }
+
+            const pt = hits[0].point;
+            measurePts.push(pt);
+
+            const marker = new THREE.Mesh(new THREE.SphereGeometry(0.4), new THREE.MeshBasicMaterial({color: 0xff0000}));
+            marker.position.copy(pt);
+            scene.add(marker);
+            measureMarkers.push(marker);
+
+            if (measurePts.length === 1) {
+                document.getElementById('dist-out').innerText = "TAP POINT 2";
+            } else if (measurePts.length === 2) {
+                const dist = measurePts[0].distanceTo(measurePts[1]);
+                document.getElementById('dist-out').innerText = dist.toFixed(2) + " mm";
+            }
+        }
+    }
+
+    // --- Core 3D Logic ---
     function generateProMolar(type) {
-        const pts = [];
-        if (type === 1) { // Pro-Grade Prep Geometry
-            for (let i = 0; i < 11; i++) {
+        let geo = type === 1 ? new THREE.CylinderGeometry(4.5, 5.5, 10, 64) : new THREE.CylinderGeometry(5.2, 6.2, 11, 64);
+        const mat = new THREE.MeshStandardMaterial({ color: type === 1 ? 0xeaeaea : 0x00d4ff, transparent: type === 2, opacity: 0.65, roughness: 0.4, side: THREE.DoubleSide });
+        const mesh = new THREE.Mesh(geo, mat);
+        if (type === 2) mesh.position.y += 0.5;
+        if (type === 1) { if(scan1) scene.remove(scan1); scan1 = mesh; } else { if(scan2) scene.remove(scan2); scan2 = mesh; }
+        scene.add(mesh);
+        document.getElementById('dist-out').innerText = type === 1 ? "PREP READY" : "CROWN READY";
+    }
+
+    function importSTL(e, layer) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        document.getElementById('dist-out').innerText = "LOADING...";
+        reader.onload = (ev) => {
+            const geo = new THREE.STLLoader().parse(ev.target.result);
+            const mat = new THREE.MeshStandardMaterial({ color: layer === 1 ? 0xf0f0f0 : 0x00d4ff, transparent: layer === 2, opacity: 0.7 });
+            const mesh = new THREE.Mesh(geo, mat);
+            geo.computeBoundingBox();
+            const center = new THREE.Vector3();
+            geo.boundingBox.getCenter(center);
+            mesh.position.sub(center);
+            if (layer === 1) { if(scan1) scene.remove(scan1); scan1 = mesh; } else { if(scan2) scene.remove(scan2); scan2 = mesh; }
+            scene.add(mesh);
+            document.getElementById('dist-out').innerText = layer === 1 ? "PREP OK" : "DESIGN OK";
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function transform(mode, axis, val) {
+        if(!scan2) return;
+        if(mode === 'pos') scan2.position[axis] += val;
+        if(mode === 'rot') scan2.rotation[axis] += val;
+        if(mode === 'scale') scan2.scale.multiplyScalar(val);
+    }
+
+    function exportDesign() {
+        if (!scan2) return alert("Please load a Design first.");
+        document.getElementById('dist-out').innerText = "EXPORTING...";
+        const exporter = new THREE.STLExporter();
+        const stlString = exporter.parse(scan2);
+        const blob = new Blob([stlString], { type: 'text/plain' });
+        const link = document.createElement('a');
+        link.style.display = 'none';
+        link.href = URL.createObjectURL(blob);
+        link.download = 'Adjusted_Design_' + Date.now() + '.stl';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        document.getElementById('dist-out').innerText = "SAVED!";
+    }
+
+    function toggleClipping() {
+        isClipping = !isClipping;
+        [scan1, scan2].forEach(m => { if(m) m.material.clippingPlanes = isClipping ? [clipPlane] : null; });
+    }
+
+    function toggleEditPanel() {
+        const p = document.getElementById('edit-panel');
+        p.style.display = p.style.display === 'grid' ? 'none' : 'grid';
+    }
+
+    function clearScene() {
+        if(scan1) scene.remove(scan1); if(scan2) scene.remove(scan2);
+        scan1 = null; scan2 = null;
+        if (isMeasuring) toggleCaliper();
+        document.getElementById('dist-out').innerText = "CLEARED";
+    }
+
+    function takeShot() {
+        const link = document.createElement('a');
+        link.download = `Lab_QC_${document.getElementById('rx-pt').value || 'Case'}.png`;
+        link.href = renderer.domElement.toDataURL('image/png');
+        link.click();
+    }
+
+    function renderLoop() {
+        requestAnimationFrame(renderLoop);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    init();
+</script>
+</body>
+</html>
