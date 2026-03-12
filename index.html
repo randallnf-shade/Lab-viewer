@@ -2,154 +2,116 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Molar Designer Fix</title>
+    <title>Dental CAD Pro v2.0</title>
     <style>
-        :root { --accent: #00d4ff; --bg: #000000; --panel: #1a1a1a; }
-        body { margin: 0; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; touch-action: none; }
-        #container { width: 100vw; height: 45vh; background: #000; border-bottom: 1px solid #333; }
-        #ui { height: 55vh; background: var(--panel); padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
-        .row { display: flex; gap: 10px; }
-        button { border: none; border-radius: 12px; font-weight: bold; padding: 18px; font-size: 13px; flex: 1; cursor: pointer; color: white; background: #333; box-shadow: 0 4px 0 #000; }
-        button:active { transform: translateY(2px); box-shadow: 0 2px 0 #000; background: #444; }
-        .test-btn { border: 2px solid var(--accent); color: var(--accent); }
-        .load-btn { background: var(--accent); color: black; box-shadow: 0 4px 0 #0089a7; }
-        .edit-toggle { background: #ff8c00; color: black; box-shadow: 0 4px 0 #b36200; width: 100%; }
-        #editor { display: none; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #222; padding: 10px; border-radius: 10px; }
+        :root { --accent: #00d4ff; --danger: #ff4444; --panel: #1e1e1e; --bg: #0a0a0a; }
+        body { margin: 0; background: var(--bg); color: white; font-family: 'Segoe UI', Roboto, sans-serif; overflow: hidden; touch-action: none; }
+        
+        #header { height: 50px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 2px solid var(--accent); }
+        #container { width: 100vw; height: 45vh; background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%); position: relative; }
+        
+        #ui-layer { height: 55vh; background: var(--panel); padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; box-shadow: 0 -10px 30px rgba(0,0,0,0.5); }
+        
+        .control-group { background: #2a2a2a; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; border: 1px solid #333; }
+        .group-label { font-size: 10px; font-weight: bold; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; }
+        
+        .row { display: flex; gap: 8px; }
+        button { border: none; border-radius: 8px; font-weight: bold; padding: 14px; font-size: 11px; flex: 1; cursor: pointer; color: white; background: #3d3d3d; transition: all 0.2s; -webkit-tap-highlight-color: transparent; text-transform: uppercase; }
+        button:active { transform: scale(0.96); filter: brightness(1.3); }
+        
+        .primary { background: var(--accent); color: black; }
+        .secondary { border: 1px solid var(--accent); color: var(--accent); background: transparent; }
+        .warning { color: #ff8c00; border: 1px solid #ff8c00; background: transparent; }
+
+        #edit-panel { display: none; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 5px; }
+        .stat-badge { font-size: 12px; background: #000; padding: 4px 10px; border-radius: 20px; color: var(--accent); border: 1px solid var(--accent); }
     </style>
 </head>
 <body>
 
+<div id="header">
+    <div style="font-weight: 800; font-size: 18px;">PRO <span style="color:var(--accent)">CAD</span></div>
+    <div id="dist-out" class="stat-badge">0.00mm</div>
+</div>
+
 <div id="container"></div>
 
-<div id="ui">
-    <div style="font-size: 11px; color: var(--accent); font-weight: bold; text-align: center;">1. GENERATE TEST MODELS</div>
-    <div class="row">
-        <button class="test-btn" onclick="genMolar(1)">🦷 PREP</button>
-        <button class="test-btn" onclick="genMolar(2)">💎 CROWN</button>
+<div id="ui-layer">
+    <div class="control-group">
+        <div class="group-label">Virtual Test Models</div>
+        <div class="row">
+            <button class="secondary" onclick="generateProMolar(1)">🦷 TEST PREP</button>
+            <button class="secondary" onclick="generateProMolar(2)">💎 TEST CROWN</button>
+        </div>
     </div>
 
-    <div style="font-size: 11px; color: #888; font-weight: bold; text-align: center;">2. QC & VIEW</div>
-    <div class="row">
-        <button onclick="toggleSlice()">🔪 X-SECTION</button>
-        <button onclick="resetCam()">🔄 CENTER</button>
+    <div class="control-group">
+        <div class="group-label">Patient STL Imports</div>
+        <div class="row">
+            <button class="primary" onclick="document.getElementById('f1').click()">📂 LOAD PREP</button>
+            <button class="primary" onclick="document.getElementById('f2').click()">📂 LOAD DESIGN</button>
+        </div>
     </div>
 
-    <button class="edit-toggle" onclick="toggleEditor()">🛠️ TRANSFORM DESIGN</button>
-    <div id="editor">
-        <button onclick="adj('pos','x',2)">X+</button>
-        <button onclick="adj('pos','y',2)">Y+</button>
-        <button onclick="adj('pos','z',2)">Z+</button>
-        <button onclick="adj('rot','x',0.5)">Tilt X</button>
-        <button onclick="adj('scale','',1.2)">Grow</button>
-        <button onclick="adj('scale','',0.8)">Shrink</button>
+    <div class="control-group">
+        <div class="group-label">Visualization & QC</div>
+        <div class="row">
+            <button onclick="toggleClipping()">🔪 X-SECTION</button>
+            <button onclick="resetViewport()">🔄 CENTER VIEW</button>
+            <button onclick="clearScene()" style="color:var(--danger)">🧹 CLEAR</button>
+        </div>
     </div>
 
-    <div class="row" style="margin-top: 10px;">
-        <button class="load-btn" onclick="document.getElementById('f1').click()">📂 LOAD PREP STL</button>
-        <button class="load-btn" onclick="document.getElementById('f2').click()">📂 LOAD CROWN STL</button>
+    <div class="control-group">
+        <div class="group-label">Transformation Engine</div>
+        <button class="warning" onclick="toggleEditPanel()">🛠️ MODIFY RESTORATION</button>
+        <div id="edit-panel">
+            <button onclick="transform('pos','x',0.5)">X+</button>
+            <button onclick="transform('pos','y',0.5)">Y+</button>
+            <button onclick="transform('pos','z',0.5)">Z+</button>
+            <button onclick="transform('rot','x',0.1)">RX+</button>
+            <button onclick="transform('rot','y',0.1)">RY+</button>
+            <button onclick="transform('scale','',1.05)">S+</button>
+        </div>
     </div>
 </div>
 
-<input type="file" id="f1" accept=".stl" style="display:none" onchange="handleFile(event, 1)">
-<input type="file" id="f2" accept=".stl" style="display:none" onchange="handleFile(event, 2)">
+<input type="file" id="f1" accept=".stl" style="display:none" onchange="importSTL(event, 1)">
+<input type="file" id="f2" accept=".stl" style="display:none" onchange="importSTL(event, 2)">
 
 <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
 <script>
-    let scene, camera, renderer, controls, prep, crown, slicing = false;
+    let scene, camera, renderer, controls, scan1, scan2;
+    let isClipping = false;
     const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
 
     function init() {
         scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(50, window.innerWidth / (window.innerHeight * 0.45), 0.1, 1000);
-        camera.position.set(25, 25, 25);
+        camera = new THREE.PerspectiveCamera(40, window.innerWidth / (window.innerHeight * 0.45), 0.1, 1000);
+        camera.position.set(30, 30, 30);
 
         renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
         renderer.setSize(window.innerWidth, window.innerHeight * 0.45);
+        renderer.setPixelRatio(window.devicePixelRatio);
         renderer.localClippingEnabled = true;
         document.getElementById('container').appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 1.0));
-        const light = new THREE.DirectionalLight(0xffffff, 1.0);
-        light.position.set(10, 20, 10);
-        scene.add(light);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambient);
+        const direct = new THREE.DirectionalLight(0xffffff, 0.8);
+        direct.position.set(10, 20, 10);
+        scene.add(direct);
 
         controls = new THREE.OrbitControls(camera, renderer.domElement);
-        animate();
+        controls.enableDamping = true;
+        
+        renderLoop();
     }
 
-    function genMolar(type) {
-        // Build a sturdy Molar Shape
+    function generateProMolar(type) {
         const pts = [];
-        for (let i = 0; i < 12; i++) {
-            let r = type === 1 ? (Math.cos(i * 0.3) * 2 + 5) : (Math.cos(i * 0.3) * 2.5 + 6.5);
-            if (i > 8) r *= 0.6; // Create the "occlusal" taper
-            pts.push(new THREE.Vector2(r, (i - 6) * 2));
-        }
-        const geo = new THREE.LatheGeometry(pts, 32);
-        const mat = new THREE.MeshStandardMaterial({ 
-            color: type === 1 ? 0xffffff : 0x00d4ff, 
-            transparent: type === 2, 
-            opacity: 0.65,
-            side: THREE.DoubleSide 
-        });
-        
-        const mesh = new THREE.Mesh(geo, mat);
-        if (type === 1) { if(prep) scene.remove(prep); prep = mesh; }
-        else { if(crown) scene.remove(crown); crown = mesh; }
-        
-        scene.add(mesh);
-        console.log("Model Generated:", type);
-        resetCam();
-    }
-
-    function toggleEditor() {
-        const e = document.getElementById('editor');
-        e.style.display = e.style.display === 'grid' ? 'none' : 'grid';
-    }
-
-    function adj(m, a, v) {
-        if(!crown) return;
-        if(m === 'pos') crown.position[a] += v;
-        if(m === 'rot') crown.rotation[a] += v;
-        if(m === 'scale') crown.scale.multiplyScalar(v);
-    }
-
-    function handleFile(e, layer) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const geo = new THREE.STLLoader().parse(ev.target.result);
-            const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ 
-                color: layer === 1 ? 0xffffff : 0x00d4ff, 
-                transparent: layer === 2, opacity: 0.7 
-            }));
-            if (layer === 1) { if(prep) scene.remove(prep); prep = m; }
-            else { if(crown) scene.remove(crown); crown = m; }
-            scene.add(m);
-            resetCam();
-        };
-        reader.readAsArrayBuffer(e.target.files[0]);
-    }
-
-    function resetCam() {
-        camera.position.set(30, 30, 30);
-        controls.target.set(0, 0, 0);
-        controls.update();
-    }
-
-    function toggleSlice() {
-        slicing = !slicing;
-        [prep, crown].forEach(m => { if(m) m.material.clippingPlanes = slicing ? [clipPlane] : null; });
-    }
-
-    function animate() {
-        requestAnimationFrame(animate);
-        renderer.render(scene, camera);
-    }
-
-    init();
-</script>
-</body>
-</html>
+        if (type === 1) { // Pro-Grade Prep Geometry
+            for (let i = 0; i < 11; i++) {
